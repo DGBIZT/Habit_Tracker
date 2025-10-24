@@ -1,11 +1,14 @@
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import viewsets, permissions
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Habit
 from .serializers import HabitSerializer
-from .paginators import CustomPagination  # Изменили импорт
+from .paginators import CustomPagination
+from .validators import validate_linked_habit_and_reward, validate_pleasant_habit, validate_linked_habit, validate_periodicity, validate_execution_time
+
 
 class HabitViewSet(viewsets.ModelViewSet):
+    """Управление привычками"""
     queryset = Habit.objects.all()
     serializer_class = HabitSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -14,7 +17,16 @@ class HabitViewSet(viewsets.ModelViewSet):
     filterset_fields = ['is_public']
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        try:
+            habit = serializer.save(user=self.request.user)
+            # Дополнительная валидация после сохранения
+            validate_linked_habit_and_reward(habit)
+            validate_pleasant_habit(habit)
+            validate_linked_habit(habit)
+            validate_periodicity(habit)
+            validate_execution_time(habit)
+        except ValidationError as e:
+            raise PermissionDenied(str(e))
 
     def get_queryset(self):
         if self.action == 'list':

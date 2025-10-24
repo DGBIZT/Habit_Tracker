@@ -9,7 +9,7 @@ from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 
 class UserCreateAPIView(generics.CreateAPIView):
-    """Создание пользователя"""
+    """Регистрация нового пользователя"""
     serializer_class = UserSerializer
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
