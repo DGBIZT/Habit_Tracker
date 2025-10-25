@@ -88,3 +88,10 @@ class Habit(models.Model):
     def clean(self):
         if self.is_pleasant and self.linked_habit:
             raise ValidationError({'linked_habit': 'Приятные привычки не могут иметь связанных'})
+
+
+class Notification(models.Model):
+    habit = models.ForeignKey(Habit, on_delete=models.CASCADE)
+    status = models.CharField(max_length=10, choices=[('sent', 'Отправлено'), ('error', 'Ошибка')])
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

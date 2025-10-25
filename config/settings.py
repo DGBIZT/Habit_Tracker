@@ -9,12 +9,20 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+from celery.schedules import crontab
 import os
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import timedelta
 
 load_dotenv(override=True)
+
+# Настройки для dj-stripe
+DJSTRIPE_LIVE_MODE = False  # True для продакшена
+DJSTRIPE_PUBLISHABLE_KEY = os.getenv("Publishable_key")
+DJSTRIPE_SECRET_KEY = os.getenv("DJSTRIPE_SECRET_KEY")
+DJSTRIPE_API_KEY = DJSTRIPE_SECRET_KEY
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -48,6 +56,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'corsheaders',
     'drf_yasg',
+    'celery'
 
 ]
 
@@ -176,6 +185,28 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
+
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
+}
+
+CACHE_ENABLED = False
+
+# Настройки Celery
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'Europe/Moscow')
+CELERY_ENABLE_UTC = os.getenv('CELERY_ENABLE_UTC', True)
+
+
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.yandex.ru'
