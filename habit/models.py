@@ -48,7 +48,8 @@ class Habit(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name='Связанная привычка'
+        verbose_name='Связанная привычка',
+        related_name='linked_habits'
     )
 
     # 7. Периодичность (по умолчанию ежедневная)

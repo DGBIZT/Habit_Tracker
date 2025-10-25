@@ -1,9 +1,10 @@
 from django.core.exceptions import PermissionDenied, ValidationError
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Habit
 from .serializers import HabitSerializer
 from .paginators import CustomPagination
+from .permissions import IsAuthenticatedOrPublic
 from .validators import validate_linked_habit_and_reward, validate_pleasant_habit, validate_linked_habit, validate_periodicity, validate_execution_time
 
 
@@ -11,22 +12,15 @@ class HabitViewSet(viewsets.ModelViewSet):
     """Управление привычками"""
     queryset = Habit.objects.all()
     serializer_class = HabitSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrPublic]
     pagination_class = CustomPagination  # Используем импортированную пагинацию
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['is_public']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['is_public'] # разрешаем фильтрацию по публичности
+    search_fields = ['action', 'place']  # добавляем поиск по полям
 
     def perform_create(self, serializer):
-        try:
-            habit = serializer.save(user=self.request.user)
-            # Дополнительная валидация после сохранения
-            validate_linked_habit_and_reward(habit)
-            validate_pleasant_habit(habit)
-            validate_linked_habit(habit)
-            validate_periodicity(habit)
-            validate_execution_time(habit)
-        except ValidationError as e:
-            raise PermissionDenied(str(e))
+        # Просто сохраняем объект с текущим пользователем
+        serializer.save(user=self.request.user)
 
     def get_queryset(self):
         if self.action == 'list':

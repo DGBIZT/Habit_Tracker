@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_filters',
     'users',
     'habit',
+    'django_extensions'
 ]
 
 MIDDLEWARE = [
@@ -149,7 +150,7 @@ REST_FRAMEWORK = {
     #     'rest_framework.permissions.AllowAny',
     # ]
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'habit.permissions.IsAuthenticatedOrPublic',
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',

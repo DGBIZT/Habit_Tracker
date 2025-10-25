@@ -1,15 +1,12 @@
-from habit.apps import HabitConfig
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import HabitViewSet
-
-
-app_name = HabitConfig.name
-
+from habit.apps import HabitConfig
 
 router = DefaultRouter()
-router.register(r'habits', HabitViewSet, basename="habits")
+router.register(r'habits', HabitViewSet)
 
 urlpatterns = [
-
-] + router.urls
+    path('', include(router.urls)),
+]
+app_name = HabitConfig.name
