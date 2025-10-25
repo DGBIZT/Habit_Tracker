@@ -6,10 +6,6 @@ from habit.models import Habit  # Предполагаю, что модель н
 from habit.paginators import CustomPagination
 from users.models import CustomUser
 
-from rest_framework import status
-from django.utils import timezone
-
-
 
 class HabitViewSetTestCase(APITestCase):
     def setUp(self):
@@ -325,4 +321,3 @@ class HabitViewSetTestCase(APITestCase):
         """Очистка после тестов"""
         Habit.objects.all().delete()
         CustomUser.objects.all().delete()
-

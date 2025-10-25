@@ -1,12 +1,12 @@
 from rest_framework import permissions
 
+
 class IsAuthenticatedOrPublic(permissions.BasePermission):
     """
     Разрешение, позволяющее:
     - Публичный доступ для SAFE_METHODS (GET, HEAD, OPTIONS) к публичным объектам
     - Аутентифицированный доступ для остальных методов
     """
-
     def has_permission(self, request, view):
         # Проверка на уровне запроса
         if request.method in permissions.SAFE_METHODS:

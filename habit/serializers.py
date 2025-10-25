@@ -10,19 +10,6 @@ from .validators import (
     validate_linked_habit,
 )
 
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
-
-from .models import Habit
-from .validators import (
-    validate_linked_habit_and_reward,
-    validate_pleasant_habit,
-    validate_periodicity,
-    validate_execution_time,
-    validate_linked_habit,
-)
-
 
 class HabitSerializer(serializers.ModelSerializer):
     class Meta:

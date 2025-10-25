@@ -1,11 +1,10 @@
-from django.core.exceptions import PermissionDenied, ValidationError
-from rest_framework import viewsets, permissions, filters
+from django.core.exceptions import PermissionDenied
+from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Habit
 from .serializers import HabitSerializer
 from .paginators import CustomPagination
 from .permissions import IsAuthenticatedOrPublic
-from .validators import validate_linked_habit_and_reward, validate_pleasant_habit, validate_linked_habit, validate_periodicity, validate_execution_time
 
 
 class HabitViewSet(viewsets.ModelViewSet):
@@ -15,7 +14,7 @@ class HabitViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrPublic]
     pagination_class = CustomPagination  # Используем импортированную пагинацию
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['is_public'] # разрешаем фильтрацию по публичности
+    filterset_fields = ['is_public']  # разрешаем фильтрацию по публичности
     search_fields = ['action', 'place']  # добавляем поиск по полям
 
     def perform_create(self, serializer):

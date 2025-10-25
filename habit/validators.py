@@ -37,7 +37,7 @@ def validate_pleasant_habit(data):
     if linked_habit_id and is_pleasant:
         raise ValidationError("Приятная привычка не может быть связана с другой привычкой")
 
-# validators.py
+
 def validate_periodicity(data):
     periodicity = data.get('periodicity')
     if periodicity is not None:
@@ -47,7 +47,6 @@ def validate_periodicity(data):
             raise ValidationError("Периодичность не может превышать 7 дней")
 
 
-# validators.py
 def validate_execution_time(data):
     execution_time = data.get('execution_time')
     if execution_time is not None:
@@ -55,4 +54,3 @@ def validate_execution_time(data):
             raise ValidationError("Время выполнения должно быть положительным числом")
         if execution_time > 120:
             raise ValidationError("Время выполнения не может превышать 120 секунд")
-

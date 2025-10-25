@@ -3,10 +3,11 @@ from habit.models import Habit
 from django.contrib.auth import get_user_model  # Используем get_user_model
 from django.utils import timezone
 import random
-import string
+
 
 # Получаем актуальную модель пользователя
 User = get_user_model()
+
 
 class Command(BaseCommand):
     help = 'Заполняет базу данных тестовыми привычками'

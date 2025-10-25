@@ -1,5 +1,4 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from users.views import (
     UserCreateAPIView,
     UserRetrieveAPIView,
@@ -20,7 +19,7 @@ urlpatterns = [
     path('login/', TokenObtainPairView.as_view(permission_classes=(AllowAny,)), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(permission_classes=(AllowAny,)), name='token_refresh'),
     path('user/me/', UserRetrieveAPIView.as_view(), name='user-me'),
-    path('user/<int:pk>/', UserRetrieveAPIView.as_view(), name='user-detail'),# Получение информации о себе
+    path('user/<int:pk>/', UserRetrieveAPIView.as_view(), name='user-detail'),  # Получение информации о себе
     path('user/update/<int:pk>/', UserUpdateAPIView.as_view(), name='user-update'),  # Обновление информации
     path('user/delete/<int:pk>/', UserDestroyAPIView.as_view(), name='user-delete'),  # Удаление аккаунта
 ]

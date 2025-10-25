@@ -1,12 +1,10 @@
-from django.shortcuts import render
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-
 from users.serializers import UserSerializer
 from users.models import CustomUser
-from rest_framework import generics,status
-from django.http import Http404
+from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
+
 
 class UserCreateAPIView(generics.CreateAPIView):
     """Регистрация нового пользователя"""

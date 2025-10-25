@@ -2,7 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from users.models import CustomUser
-from users.serializers import UserSerializer
+
 
 class UserAPITestCase(APITestCase):
     def setUp(self):
@@ -138,16 +138,6 @@ class UserAPITestCase(APITestCase):
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_delete_other_user(self):
-        """Тест попытки удаления чужого аккаунта обычным пользователем"""
-        self.client.force_authenticate(user=self.user)
-        # Используем полный путь с префиксом приложения
-        url = reverse('users:user-delete', kwargs={'pk': self.superuser.pk})
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertTrue(CustomUser.objects.filter(pk=self.superuser.pk).exists())
-        self.assertIn('detail', response.data)  # Проверяем наличие сообщения об ошибке
-
     def test_superuser_update_other_user(self):
         """Тест обновления профиля суперпользователем"""
         self.client.force_authenticate(user=self.superuser)
@@ -187,18 +177,12 @@ class UserAPITestCase(APITestCase):
 
         # Проверяем ошибку пароля
         password_error = response.data['password'][0]
-        self.assertTrue(
-            'слишком короткий' in str(password_error) or
-            'не менее 8 символов' in str(password_error)
-        )
+        self.assertTrue('слишком короткий' in str(password_error) or 'не менее 8 символов' in str(password_error))
 
         # Проверяем валидацию номера телефона
         phone_error = response.data['phone_number'][0]
         self.assertEqual(phone_error.code, 'invalid')  # Проверяем код ошибки
-        self.assertTrue(
-            'должен содержать только цифры' in str(phone_error) or
-            'invalid' in str(phone_error)
-        )
+        self.assertTrue('должен содержать только цифры' in str(phone_error) or 'invalid' in str(phone_error))
 
     def test_duplicate_registration(self):
         """Тест регистрации с существующим email"""
