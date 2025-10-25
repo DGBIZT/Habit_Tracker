@@ -50,6 +50,7 @@ class UserRetrieveAPIView(generics.RetrieveAPIView):
 
 
 class UserUpdateAPIView(generics.UpdateAPIView):
+    """Обновление пользователя"""
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = (IsAuthenticated,)
