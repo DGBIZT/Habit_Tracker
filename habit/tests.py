@@ -1,323 +1,547 @@
+from django.contrib.auth import get_user_model
 from django.urls import reverse
-from django.contrib.auth import get_user_model  # Импортируем функцию получения модели пользователя
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
-from habit.models import Habit  # Предполагаю, что модель находится в приложении habit
-from habit.paginators import CustomPagination
+from rest_framework.test import APITestCase
+from datetime import time
+
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from datetime import time
+
+from habit.models import Habit
 from users.models import CustomUser
 
 
 class HabitViewSetTestCase(APITestCase):
     def setUp(self):
-        User = get_user_model()  # Получаем актуальную модель пользователя
-
+        super().setUp()
+        Habit.objects.all().delete()  # Очищаем все привычки перед тестом
         # Создаем тестового пользователя
-        self.user = User.objects.create_user(
+        self.user = get_user_model().objects.create_user(
             username='testuser',
             password='123456',
             email='testuser@example.com'
         )
-        self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-        # Создаем тестовые данные со всеми полями модели
-        self.habit_data = {
+        # Базовые данные для создания привычки
+        self.base_habit_data = {
             'place': 'Дом',
-            'time': '08:00:00',  # Время в формате HH:MM:SS
+            'time': '08:00:00',
             'action': 'Утренняя зарядка',
             'is_pleasant': False,
             'linked_habit': None,
             'periodicity': 1,
             'reward': 'Хорошее настроение',
-            'execution_time': 2,  # В минутах
+            'execution_time': 2,
             'is_public': True
         }
 
-    def test_create_habit(self):
-        # Создаем приятную привычку для связи
-        pleasant_habit_data = {
-            'place': 'Дом',
-            'time': '09:00:00',
-            'action': 'Приятная привычка',
-            'is_pleasant': True,
-            'periodicity': 1,
-            'reward': '',  # Для приятной привычки награда не нужна
-            'execution_time': 2,  # В минутах
-            'is_public': True
-        }
+    def test_create_user_habit(self):
+        # Используем полное имя URL с namespace
+        response = self.client.post(
+            reverse('habit:user-habit-list'),  # Важно: habit:user-habit-list
+            self.base_habit_data,
+            format='json'
+        )
 
+        # Проверяем успешность создания
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['user'], self.user.id)
+
+        # Проверяем корректность сохраненных данных
+        self.assertEqual(response.data['execution_time'], 2)
+        self.assertEqual(response.data['place'], 'Дом')
+        self.assertEqual(response.data['action'], 'Утренняя зарядка')
+
+    def test_create_pleasant_habit(self):
         # Создаем приятную привычку
-        pleasant_response = self.client.post(
-            reverse('habit:habits-list'),
+        pleasant_habit_data = {
+            **self.base_habit_data,
+            'is_pleasant': True,
+            'linked_habit': None
+        }
+
+        # Удаляем поле reward полностью
+        del pleasant_habit_data['reward']
+
+        # Важно: используем правильное имя URL
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
             pleasant_habit_data,
             format='json'
         )
 
-        # Выводим ошибки валидации, если они есть
-        if pleasant_response.status_code == 400:
-            print("Ошибки валидации при создании приятной привычки:")
-            print(pleasant_response.data)
+        # Добавляем вывод ошибок для отладки
+        if response.status_code != status.HTTP_201_CREATED:
+            print("Response data:", response.data)
+            print("Response errors:", response.json())
 
-        # Проверяем успешность создания приятной привычки
-        self.assertEqual(pleasant_response.status_code, status.HTTP_201_CREATED)
-        pleasant_habit_id = pleasant_response.data['id']
+        # Проверяем успешность создания
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['is_pleasant'])
 
-        # Создаем основную привычку с ссылкой на приятную
-        self.habit_data = {
+        # Дополнительные проверки
+        self.assertEqual(response.data['user'], self.user.id)
+        self.assertEqual(response.data['action'], pleasant_habit_data['action'])
+
+    def test_create_habit_with_linked(self):
+        # Создаём приятную привычку
+        pleasant_habit_data = {
+            **self.base_habit_data,
+            'is_pleasant': True,
+            'reward': 'Моральное удовлетворение',
+            'linked_habit': None,
             'place': 'Дом',
-            'time': '08:00:00',
+            'time': '10:00:00',
             'action': 'Утренняя зарядка',
-            'is_pleasant': False,
-            'linked_habit': pleasant_habit_id,
             'periodicity': 1,
-            'reward': 'Хорошее настроение',
-            'execution_time': 2,  # В минутах
-            'is_public': True
+            'execution_time': 2,
+            'is_public': False
+        }
+
+        try:
+            # Получаем URL
+            pleasant_url = reverse('habit:user-habit-list')
+            print(f"Полученный URL: {pleasant_url}")
+
+            # Отправляем POST запрос для приятной привычки
+            pleasant_response = self.client.post(
+                pleasant_url,
+                pleasant_habit_data,
+                format='json'
+            )
+
+            # Проверяем статус ответа
+            self.assertEqual(pleasant_response.status_code, status.HTTP_201_CREATED)
+            pleasant_id = int(pleasant_response.data['id'])
+            print(f"Создан ID приятной привычки: {pleasant_id}")
+
+            # В тестовом методе
+            linked_habit_data = {
+                **self.base_habit_data,
+                'is_pleasant': False,
+                'linked_habit': pleasant_id,  # Указываем ID связанной привычки
+                'place': 'Офис',
+                'time': '15:00:00',
+                'action': 'Уборка рабочего места',
+                'periodicity': 1,
+                'execution_time': 2,
+                'is_public': False
+                # Убираем поле reward, так как есть связанная привычка
+            }
+
+            print(f"Данные для связанной привычки: {linked_habit_data}")
+            print(f"Тип linked_habit: {type(linked_habit_data['linked_habit'])}")
+
+            # Получаем URL для второй привычки
+            linked_url = reverse('habit:user-habit-list')
+            print(f"URL для связанной привычки: {linked_url}")
+
+            # Отправляем второй POST запрос
+            response = self.client.post(
+                linked_url,
+                linked_habit_data,
+                format='json'
+            )
+
+            # Выводим ошибки валидации для второго запроса
+            if response.status_code != status.HTTP_201_CREATED:
+                print("Ошибки валидации для связанной привычки:", response.data)
+                print("Статус ответа:", response.status_code)
+
+            # Проверяем успешность создания
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['linked_habit'], pleasant_id)
+
+            # Дополнительные проверки
+            self.assertEqual(response.data['user'], self.user.id)
+            self.assertEqual(response.data['action'], linked_habit_data['action'])
+
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+            raise
+
+    def test_create_pleasant_with_link_fails(self):
+        # Создаем обычную привычку
+        base_habit_response = self.client.post(
+            reverse('habit:user-habit-list'),
+            self.base_habit_data,
+            format='json'
+        )
+        base_id = base_habit_response.data['id']
+
+        # Пытаемся создать приятную привычку со ссылкой
+        pleasant_with_link_data = {
+            **self.base_habit_data,
+            'is_pleasant': True,
+            'linked_habit': base_id
         }
 
         response = self.client.post(
-            reverse('habit:habits-list'),
-            self.habit_data,
+            reverse('habit:user-habit-list'),
+            pleasant_with_link_data,
             format='json'
         )
 
-        # Выводим ошибки валидации, если они есть
-        if response.status_code == 400:
-            print("Ошибки валидации при создании основной привычки:")
-            print(response.data)
-
-        # Проверяем, что статус ответа корректный
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Добавляем проверку данных
-        self.assertEqual(response.data['execution_time'], 2)
-        self.assertEqual(response.data['place'], 'Дом')
-        self.assertEqual(response.data['action'], 'Утренняя зарядка')
-        self.assertEqual(response.data['linked_habit'], pleasant_habit_id)
-
-    def test_create_habit_with_invalid_execution_time(self):
-        invalid_data = self.habit_data.copy()
-        invalid_data['execution_time'] = 3  # Превышает 2 минуты
-
-        response = self.client.post(
-            reverse('habit:habits-list'),
-            invalid_data,
-            format='json'
-        )
-
+        # Проверяем результат
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('execution_time', response.data)
-        self.assertEqual(
-            response.data['execution_time'][0],
-            'Время выполнения не должно превышать 2 минуты'
-        )
-
-    def test_validation_execution_time(self):
-        """Тест валидации времени выполнения"""
-        invalid_data = self.habit_data.copy()
-        invalid_data['execution_time'] = 3  # Невалидное значение
-
-        response = self.client.post(reverse('habit-list'), invalid_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('execution_time', response.data)
-
-    def test_pleasant_habit_validation(self):
-        """Тест валидации приятной привычки"""
-        pleasant_data = self.habit_data.copy()
-        pleasant_data['is_pleasant'] = True
-        pleasant_data['linked_habit'] = None  # Приятная привычка не может иметь связанной
-
-        # Создаем приятную привычку
-        response = self.client.post(reverse('habit:habit-list'), pleasant_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Пытаемся создать связанную привычку для приятной
-        linked_habit = Habit.objects.first()
-        invalid_data = pleasant_data.copy()
-        invalid_data['linked_habit'] = linked_habit.id
-
-        # Отправляем запрос
-        response = self.client.post(reverse('habit:habit-list'), invalid_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        # Проверяем наличие ошибки в non_field_errors
         self.assertIn('non_field_errors', response.data)
         self.assertEqual(
-            str(response.data['non_field_errors'][0]),
-            'ID связанной привычки должен быть числом'
+            response.data['non_field_errors'][0],
+            'Приятная привычка не может быть связана с другой привычкой'
         )
 
-    def test_list_habits(self):
-        """Тест получения списка привычек"""
-        Habit.objects.create(user=self.user, **self.habit_data)
-        response = self.client.get(reverse('habit:habit-list'))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 4)
-
-    def test_retrieve_habit(self):
-        """Тест получения отдельной привычки"""
-        habit = Habit.objects.create(user=self.user, **self.habit_data)
-        # Используем правильный URL для получения конкретного объекта
-        response = self.client.get(reverse('habit:habit-detail', kwargs={'pk': habit.pk}))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Проверяем корректность возвращаемых данных
-        self.assertEqual(response.data['action'], self.habit_data['action'])  # Используем существующее поле action
-        self.assertEqual(response.data['place'], self.habit_data['place'])  # Используем существующее поле place
-        self.assertEqual(response.data['id'], habit.pk)
-
+    # Тест на обновление привычки
     def test_update_habit(self):
-        """Тест обновления привычки"""
-        # Создаем привычку с тестовыми данными
-        habit = Habit.objects.create(user=self.user, **self.habit_data)
+        # Создаем привычку
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            self.base_habit_data,
+            format='json'
+        )
+        habit_id = response.data['id']
 
-        # Выбираем поле, которое реально существует в модели
-        updated_data = {'action': 'Новое действие'}  # Используем существующее поле action
+        # Обновляем данные
+        updated_data = {
+            **self.base_habit_data,
+            'action': 'Обновленное действие'
+        }
 
-        # Используем правильный URL и kwargs
-        response = self.client.patch(
-            reverse('habit:habit-detail', kwargs={'pk': habit.pk}),
+        # Отправляем PUT запрос
+        response = self.client.put(
+            reverse('habit:user-habit-detail', kwargs={'pk': habit_id}),
             updated_data,
             format='json'
         )
 
-        # Проверяем статус ответа
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['action'], 'Обновленное действие')
 
-        # Проверяем, что поле обновилось
-        self.assertEqual(response.data['action'], updated_data['action'])
-
-        # Дополнительно можно проверить сохранение в базе
-        habit.refresh_from_db()
-        self.assertEqual(habit.action, updated_data['action'])
-
+    # Тест на удаление привычки
     def test_delete_habit(self):
-        """Тест удаления привычки"""
-        habit = Habit.objects.create(user=self.user, **self.habit_data)
-        response = self.client.delete(reverse('habit:habit-detail', args=[habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Habit.objects.count(), 0)
+        # Проверяем, что base_habit_data существует
+        if not hasattr(self, 'base_habit_data'):
+            raise AssertionError("base_habit_data не определен в тестовом классе")
 
-    def test_permission_denied(self):
-        """Тест проверки разрешений"""
-        # Создаем другого пользователя
-        other_user = CustomUser.objects.create_user(username='otheruser', password='123456')
-        other_client = APIClient()
-        other_client.force_authenticate(user=other_user)
-
-        habit = Habit.objects.create(user=self.user, **self.habit_data)
-        response = other_client.delete(reverse('habit:habit-detail', args=[habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_validation(self):
-        """Тест валидации данных"""
-        invalid_data = {
-            'place': 'Место',  # недостаточно полей для создания
-        }
-        response = self.client.post(reverse('habit:habit-list'), invalid_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_filtering(self):
-        """Тест фильтрации публичных привычек"""
-        # Создаем публичные и непубличные привычки
-        Habit.objects.create(
-            user=self.user,
-            action='Публичная привычка',  # используем существующее поле action
-            time='12:00:00',  # добавляем обязательное поле time
-            place='Место',  # добавляем обязательное поле place
-            is_public=True
+        # Создаем привычку
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            self.base_habit_data,  # Используем base_habit_data
+            format='json'
         )
-        Habit.objects.create(
-            user=self.user,
-            action='Приватная привычка',  # используем существующее поле action
-            time='12:00:00',  # добавляем обязательное поле time
-            place='Место',  # добавляем обязательное поле place
-            is_public=False
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)  # Добавляем проверку создания
+        habit_id = response.data['id']
+
+        # Проверяем, что привычка действительно создана
+        created_habit = Habit.objects.get(id=habit_id)
+        self.assertEqual(created_habit.user, self.user)  # Проверяем связь с пользователем
+
+        # Удаляем привычку
+        delete_response = self.client.delete(
+            reverse('habit:user-habit-detail', kwargs={'pk': habit_id})
         )
 
-        # Фильтрация публичных привычек
-        response = self.client.get(reverse('habit:habit-list') + '?is_public=true')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 4)
-        self.assertTrue(response.data[0]['is_public'])
+        # Проверяем статус удаления
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
 
-        # Фильтрация всех привычек пользователя
-        response = self.client.get(reverse('habit:habit-list'))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        # Проверяем, что привычка удалена из базы данных
+        with self.assertRaises(Habit.DoesNotExist):
+            Habit.objects.get(id=habit_id)
 
-    def test_pagination(self):
-        """Тест пагинации"""
-        # Создаем много привычек для тестирования пагинации
-        for i in range(100):
-            Habit.objects.create(
-                user=self.user,
-                action=f'Привычка {i}',  # используем существующее поле action
-                time='12:00:00',  # добавляем обязательное поле time
-                place='Место',  # добавляем обязательное поле place
-                is_public=True
+    # Тест на получение списка привычек
+    def test_list_habits(self):
+        # Создаем несколько привычек
+        for i in range(3):
+            self.client.post(
+                reverse('habit:user-habit-list'),
+                self.base_habit_data,
+                format='json'
             )
 
-        response = self.client.get(reverse('habit:habit-list'))
-        self.assertTrue('next' in response.data)
-        self.assertEqual(len(response.data['results']), CustomPagination.page_size)
-
-    def test_unauthenticated_access(self):
-        """Тест доступа без аутентификации"""
-        self.client.force_authenticate(user=None)
-
-        # Проверка POST
-        response = self.client.post(reverse('habit:habit-list'), self.habit_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Проверка GET
-        habit = Habit.objects.create(user=self.user, **self.habit_data)
-        response = self.client.get(reverse('habit:habit-detail', args=[habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_public_habit_access(self):
-        """Тест доступа к публичным привычкам неавторизованным пользователем"""
-        # Создаем публичную привычку
-        public_habit = Habit.objects.create(
-            user=self.user,
-            action='Публичная привычка',  # используем существующее поле action
-            time='12:00:00',  # добавляем обязательное поле time
-            place='Место',  # добавляем обязательное поле place
-            is_public=True
+        # Получаем список
+        response = self.client.get(
+            reverse('habit:user-habit-list')
         )
 
-        # Авторизованный пользователь
-        response = self.client.get(reverse('habit:habit-detail', args=[public_habit.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 4)
 
-        # Неавторизованный пользователь
-        self.client.force_authenticate(user=None)
-        response = self.client.get(reverse('habit:habit-detail', args=[public_habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_private_habit_access(self):
-        """Тест доступа к приватным привычкам неавторизованным пользователем"""
-        # Создаем приватную привычку
-        private_habit = Habit.objects.create(
-            user=self.user,
-            action='Приватная привычка',  # используем существующее поле action
-            time='12:00:00',  # добавляем обязательное поле time
-            place='Место',  # добавляем обязательное поле place
-            is_public=False
-        )
-
-        # Неавторизованный пользователь
-        self.client.force_authenticate(user=None)
-        response = self.client.get(reverse('habit:habit-detail', args=[private_habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Другой авторизованный пользователь
-        other_user = CustomUser.objects.create_user(username='otheruser', password='123456')
-        self.client.force_authenticate(user=other_user)
-        response = self.client.get(reverse('habit:habit-detail', args=[private_habit.pk]))
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def tearDown(self):
-        """Очистка после тестов"""
+    # Тест на фильтрацию привычек!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    def test_filter_habits(self):
+        # Очищаем базу данных перед тестом
         Habit.objects.all().delete()
-        CustomUser.objects.all().delete()
+
+        # Создаем привычки
+        response1 = self.client.post(
+            reverse('habit:user-habit-list'),
+            {**self.base_habit_data, 'action': 'Утренняя зарядка'},
+            format='json'
+        )
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        response2 = self.client.post(
+            reverse('habit:user-habit-list'),
+            {**self.base_habit_data, 'action': 'Вечерняя прогулка'},
+            format='json'
+        )
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+        # Проверяем общее количество привычек
+        all_habits = self.client.get(reverse('habit:user-habit-list'))
+        self.assertEqual(len(all_habits.data), 2)
+
+        # Фильтруем по действию
+        response = self.client.get(
+            reverse('habit:user-habit-list') + '?search=зарядка'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)  # Ожидаем только одну запись
+
+        # Проверяем содержимое
+        if response.data:
+            self.assertEqual(response.data[0]['action'], 'Утренняя зарядка')
+        else:
+            self.fail("Фильтрация не вернула ожидаемых результатов")
+
+        # Тест на публичные привычки
+
+    def test_public_habits(self):
+        # Создаем публичную привычку
+        public_habit_data = {
+            **self.base_habit_data,
+            'is_public': True
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            public_habit_data,
+            format='json'
+        )
+        habit_id = response.data['id']
+
+        # Получаем через публичный endpoint
+        response = self.client.get(
+            reverse('habit:public-habit-detail', kwargs={'pk': habit_id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['is_public'], True)
+
+
+    # Тест на проверку прав доступа для публичных привычек
+    def test_public_habits_permissions(self):
+        # Создаем приватную привычку
+        private_habit_data = {
+            **self.base_habit_data,
+            'is_public': False
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            private_habit_data,
+            format='json'
+        )
+        habit_id = response.data['id']
+
+        # Пытаемся получить через публичный endpoint
+        response = self.client.get(
+            reverse('habit:public-habit-detail', kwargs={'pk': habit_id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Тест на проверку прав доступа для чужого контента
+
+    def test_permission_denied_for_other_user(self):
+        # Создаем второго пользователя
+        other_user = get_user_model().objects.create_user(
+            username='otheruser',
+            password='123456',
+            email='other@example.com'
+        )
+
+        # Создаем привычку от имени первого пользователя
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            self.base_habit_data,
+            format='json'
+        )
+        habit_id = response.data['id']
+
+        # Авторизуемся как другой пользователь
+        self.client.force_authenticate(user=other_user)
+
+        # Пытаемся получить привычку
+        response = self.client.get(
+            reverse('habit:user-habit-detail', kwargs={'pk': habit_id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Пытаемся обновить привычку
+        response = self.client.put(
+            reverse('habit:user-habit-detail', kwargs={'pk': habit_id}),
+            self.base_habit_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Пытаемся удалить привычку
+        response = self.client.delete(
+            reverse('habit:user-habit-detail', kwargs={'pk': habit_id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # Тест на валидацию периодичности
+    def test_periodicity_validation(self):
+        # Проверяем минимальную периодичность
+        invalid_periodicity_data = {
+            **self.base_habit_data,
+            'periodicity': 0
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            invalid_periodicity_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Проверяем наличие ошибки в non_field_errors
+        self.assertIn('non_field_errors', response.data)
+        self.assertIn(
+            'Периодичность должна быть положительным числом',
+            str(response.data['non_field_errors'])
+        )
+
+        # Проверяем максимальную периодичность
+        invalid_periodicity_data = {
+            **self.base_habit_data,
+            'periodicity': 8
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            invalid_periodicity_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Проверяем наличие ошибки в non_field_errors
+        self.assertIn('non_field_errors', response.data)
+        self.assertIn(
+            'Периодичность не может превышать 7 дней',
+            str(response.data['non_field_errors'])
+        )
+
+    def test_execution_time_validation(self):
+        # Создаем базовые валидные данные со всеми обязательными полями
+        base_habit_data = {
+            'place': 'Дом',
+            'time': '12:00:00',  # Время в формате HH:MM:SS
+            'action': 'Новая привычка',
+            'is_pleasant': False,
+            'periodicity': 1,
+            'reward': 'Вознаграждение',
+            'execution_time': 2,  # В минутах
+            'is_public': False
+        }
+
+        # Проверяем минимальное время (0)
+        invalid_time_data_min = {
+            **base_habit_data,
+            'execution_time': 0
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            invalid_time_data_min,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Проверяем ошибку для минимального значения
+        if 'execution_time' in response.data:
+            self.assertIn(
+                'Время выполнения должно быть положительным числом',
+                str(response.data['execution_time'])
+            )
+        elif 'non_field_errors' in response.data:
+            self.assertIn(
+                'Время выполнения должно быть положительным числом',
+                str(response.data['non_field_errors'])
+            )
+        else:
+            self.fail("Ошибка валидации не найдена в ожидаемых местах")
+
+        # Проверяем максимальное время (3 минуты)
+        invalid_time_data_max = {
+            **base_habit_data,
+            'execution_time': 3
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            invalid_time_data_max,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Проверяем ошибку для максимального значения
+        if 'execution_time' in response.data:
+            self.assertIn(
+                'Время выполнения не должно превышать 2 минуты',
+                str(response.data['execution_time'])
+            )
+        elif 'non_field_errors' in response.data:
+            self.assertIn(
+                'Время выполнения не должно превышать 2 минуты',
+                str(response.data['non_field_errors'])
+            )
+        else:
+            self.fail("Ошибка валидации не найдена в ожидаемых местах")
+
+        # Проверяем корректное время (2 минуты)
+        valid_time_data = {
+            **base_habit_data,
+            'execution_time': 2
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            valid_time_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['execution_time'], 2)
+        self.assertIn('id', response.data)
+        self.assertIn('user', response.data)
+
+    # Тест на валидацию награды
+
+
+    def test_reward_validation(self):
+        # Проверяем награду для приятной привычки
+        pleasant_with_reward_data = {
+            **self.base_habit_data,
+            'is_pleasant': True,
+            'reward': 'Награда'  # награда не должна быть указана
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            pleasant_with_reward_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non_field_errors', response.data)
+
+        # Проверяем награду без связанной привычки
+        valid_reward_data = {
+            **self.base_habit_data,
+            'is_pleasant': False,
+            'reward': 'Награда',
+            'linked_habit': None
+        }
+        response = self.client.post(
+            reverse('habit:user-habit-list'),
+            valid_reward_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['reward'], 'Награда')

@@ -3,16 +3,18 @@ from .models import Habit
 
 
 def validate_linked_habit_and_reward(data):
-    # Получаем значения из словаря
-    linked_habit = data.get('linked_habit')
-    reward = data.get('reward')
 
-    # Проверяем условия
-    if linked_habit and reward:
-        raise ValidationError("Нельзя одновременно указывать связанную привычку и награду")
+    if data.get('is_pleasant') and data.get('reward'):
+        raise ValidationError({
+            'non_field_errors': 'Приятная привычка не может содержать награду'
+        })
+
+    if data.get('linked_habit') and data.get('reward'):
+        raise ValidationError({
+            'non_field_errors': 'Нельзя одновременно указывать связанную привычку и награду'
+        })
 
 
-# validators.py
 def validate_linked_habit(data):
     linked_habit_id = data.get('linked_habit')
 
@@ -30,12 +32,12 @@ def validate_linked_habit(data):
 
 
 def validate_pleasant_habit(data):
-    # Получаем значение из словаря
     is_pleasant = data.get('is_pleasant')
     linked_habit_id = data.get('linked_habit')
 
     if linked_habit_id and is_pleasant:
-        raise ValidationError("Приятная привычка не может быть связана с другой привычкой")
+        raise ValidationError({'non_field_errors': 'Приятная привычка не может быть связана с другой привычкой'})
+
 
 
 def validate_periodicity(data):

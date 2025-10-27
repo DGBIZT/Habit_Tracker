@@ -6,29 +6,22 @@ from .serializers import HabitSerializer
 from .paginators import CustomPagination
 from .permissions import IsAuthenticatedOrPublic
 
-
-class HabitViewSet(viewsets.ModelViewSet):
-    """Управление привычками"""
-    queryset = Habit.objects.all()
+class UserHabitViewSet(viewsets.ModelViewSet):
+    """Управление привычками текущего пользователя"""
     serializer_class = HabitSerializer
     permission_classes = [IsAuthenticatedOrPublic]
-    pagination_class = CustomPagination  # Используем импортированную пагинацию
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['is_public']  # разрешаем фильтрацию по публичности
-    search_fields = ['action', 'place']  # добавляем поиск по полям
-
-    def perform_create(self, serializer):
-        # Просто сохраняем объект с текущим пользователем
-        serializer.save(user=self.request.user)
+    search_fields = ['action', 'place']
 
     def get_queryset(self):
-        if self.action == 'list':
-            if self.request.query_params.get('public') == 'true':
-                return Habit.objects.filter(is_public=True)
-            return Habit.objects.filter(user=self.request.user)
-        return super().get_queryset()
+        return Habit.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     def check_object_permissions(self, request, obj):
+        # Проверяем права через существующее разрешение
         super().check_object_permissions(request, obj)
         if request.method in ['PUT', 'PATCH', 'DELETE']:
             if obj.user != request.user:
@@ -39,8 +32,18 @@ class HabitViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("У вас нет прав на удаление этой привычки")
         return super().perform_destroy(instance)
 
+
+class PublicHabitViewSet(viewsets.ReadOnlyModelViewSet):
+    """Просмотр публичных привычек"""
+    queryset = Habit.objects.filter(is_public=True)
+    serializer_class = HabitSerializer
+    permission_classes = [IsAuthenticatedOrPublic]
+    pagination_class = CustomPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    search_fields = ['action', 'place']
+
     def retrieve(self, request, *args, **kwargs):
         habit = self.get_object()
-        if not habit.is_public and habit.user != request.user:
-            raise PermissionDenied("У вас нет прав на просмотр этой привычки")
+        if not habit.is_public:
+            raise PermissionDenied("Эта привычка не является публичной")
         return super().retrieve(request, *args, **kwargs)

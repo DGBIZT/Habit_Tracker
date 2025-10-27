@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from django.utils.dateparse import parse_time
+import re
 
 from .models import Habit
 from .validators import (
@@ -10,8 +12,9 @@ from .validators import (
     validate_linked_habit,
 )
 
-
 class HabitSerializer(serializers.ModelSerializer):
+    reward = serializers.CharField(required=False, allow_blank=True, allow_null=True)  # Добавляем настройки для reward
+
     class Meta:
         model = Habit
         fields = [
@@ -29,38 +32,45 @@ class HabitSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['user']
 
+    def validate_reward(self, value):
+        # Преобразуем пустую строку в None
+        if value == '':
+            return None
+        return value
+
     def validate(self, data):
         errors = {}
 
-        # Валидация связанной привычки
-        try:
-            validate_linked_habit(data)
-        except ValidationError as e:
-            errors['linked_habit'] = str(e)
-
-        # Валидация связанных привычек и награды
-        try:
-            validate_linked_habit_and_reward(data)
-        except ValidationError as e:
-            errors['linked_habit_and_reward'] = str(e)
-
-        # Валидация приятной привычки
+        # Сначала проверяем, что приятная привычка не может быть связана
         try:
             validate_pleasant_habit(data)
         except ValidationError as e:
             errors['pleasant_habit'] = str(e)
 
-        # Валидация периодичности
+        # Затем проверяем остальные валидации
+        try:
+            validate_linked_habit(data)
+        except ValidationError as e:
+            errors['linked_habit'] = str(e)
+
+        try:
+            validate_linked_habit_and_reward(data)
+        except ValidationError as e:
+            errors['linked_habit_and_reward'] = str(e)
+
         try:
             validate_periodicity(data)
         except ValidationError as e:
             errors['periodicity'] = str(e)
 
-        # Валидация времени выполнения
         try:
             validate_execution_time(data)
         except ValidationError as e:
             errors['execution_time'] = str(e)
+
+        # Дополнительная проверка для приятной привычки
+        if data.get('is_pleasant') and data.get('reward'):
+            errors['reward'] = 'Приятная привычка не может иметь награду'
 
         if errors:
             raise serializers.ValidationError(errors)
