@@ -2,16 +2,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from datetime import time
-
-from django.contrib.auth import get_user_model
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase
-from datetime import time
 
 from habit.models import Habit
-from users.models import CustomUser
 
 
 class HabitViewSetTestCase(APITestCase):
@@ -330,7 +322,6 @@ class HabitViewSetTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['is_public'], True)
 
-
     # Тест на проверку прав доступа для публичных привычек
     def test_public_habits_permissions(self):
         # Создаем приватную привычку
@@ -514,8 +505,6 @@ class HabitViewSetTestCase(APITestCase):
         self.assertIn('user', response.data)
 
     # Тест на валидацию награды
-
-
     def test_reward_validation(self):
         # Проверяем награду для приятной привычки
         pleasant_with_reward_data = {

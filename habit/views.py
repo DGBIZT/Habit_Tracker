@@ -6,6 +6,7 @@ from .serializers import HabitSerializer
 from .paginators import CustomPagination
 from .permissions import IsAuthenticatedOrPublic
 
+
 class UserHabitViewSet(viewsets.ModelViewSet):
     """Управление привычками текущего пользователя"""
     serializer_class = HabitSerializer

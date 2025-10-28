@@ -1,8 +1,5 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from django.utils.dateparse import parse_time
-import re
-
 from .models import Habit
 from .validators import (
     validate_linked_habit_and_reward,
@@ -11,6 +8,7 @@ from .validators import (
     validate_execution_time,
     validate_linked_habit,
 )
+
 
 class HabitSerializer(serializers.ModelSerializer):
     reward = serializers.CharField(required=False, allow_blank=True, allow_null=True)  # Добавляем настройки для reward

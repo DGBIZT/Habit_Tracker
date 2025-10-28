@@ -39,7 +39,6 @@ def validate_pleasant_habit(data):
         raise ValidationError({'non_field_errors': 'Приятная привычка не может быть связана с другой привычкой'})
 
 
-
 def validate_periodicity(data):
     periodicity = data.get('periodicity')
     if periodicity is not None:
