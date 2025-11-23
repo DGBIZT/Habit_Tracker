@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     build-essential \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    curl
 
 # Копируем зависимости
 COPY pyproject.toml poetry.lock ./
