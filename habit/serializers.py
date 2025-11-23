@@ -2,8 +2,13 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from .models import Habit
-from .validators import (validate_execution_time, validate_linked_habit, validate_linked_habit_and_reward,
-                         validate_periodicity, validate_pleasant_habit)
+from .validators import (
+    validate_execution_time,
+    validate_linked_habit,
+    validate_linked_habit_and_reward,
+    validate_periodicity,
+    validate_pleasant_habit,
+)
 
 
 class HabitSerializer(serializers.ModelSerializer):
