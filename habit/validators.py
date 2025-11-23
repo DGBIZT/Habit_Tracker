@@ -1,22 +1,19 @@
 from django.core.exceptions import ValidationError
+
 from .models import Habit
 
 
 def validate_linked_habit_and_reward(data):
 
-    if data.get('is_pleasant') and data.get('reward'):
-        raise ValidationError({
-            'non_field_errors': 'Приятная привычка не может содержать награду'
-        })
+    if data.get("is_pleasant") and data.get("reward"):
+        raise ValidationError({"non_field_errors": "Приятная привычка не может содержать награду"})
 
-    if data.get('linked_habit') and data.get('reward'):
-        raise ValidationError({
-            'non_field_errors': 'Нельзя одновременно указывать связанную привычку и награду'
-        })
+    if data.get("linked_habit") and data.get("reward"):
+        raise ValidationError({"non_field_errors": "Нельзя одновременно указывать связанную привычку и награду"})
 
 
 def validate_linked_habit(data):
-    linked_habit_id = data.get('linked_habit')
+    linked_habit_id = data.get("linked_habit")
 
     # Проверяем, что linked_habit_id является числом
     if linked_habit_id is not None:
@@ -32,15 +29,15 @@ def validate_linked_habit(data):
 
 
 def validate_pleasant_habit(data):
-    is_pleasant = data.get('is_pleasant')
-    linked_habit_id = data.get('linked_habit')
+    is_pleasant = data.get("is_pleasant")
+    linked_habit_id = data.get("linked_habit")
 
     if linked_habit_id and is_pleasant:
-        raise ValidationError({'non_field_errors': 'Приятная привычка не может быть связана с другой привычкой'})
+        raise ValidationError({"non_field_errors": "Приятная привычка не может быть связана с другой привычкой"})
 
 
 def validate_periodicity(data):
-    periodicity = data.get('periodicity')
+    periodicity = data.get("periodicity")
     if periodicity is not None:
         if periodicity <= 0:
             raise ValidationError("Периодичность должна быть положительным числом")
@@ -49,7 +46,7 @@ def validate_periodicity(data):
 
 
 def validate_execution_time(data):
-    execution_time = data.get('execution_time')
+    execution_time = data.get("execution_time")
     if execution_time is not None:
         if execution_time <= 0:
             raise ValidationError("Время выполнения должно быть положительным числом")

@@ -1,10 +1,12 @@
-from celery import shared_task
+import logging
+
 import requests
-from habit.models import Habit, Notification
+from celery import shared_task
+from django.conf import settings
 from telegram import Bot
 from telegram.error import TelegramError
-from django.conf import settings
-import logging
+
+from habit.models import Habit, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -33,32 +35,18 @@ def send_notifications():
                         f"Место: {habit.place}\n"
                         f"Время: {habit.time}"
                     )
-                    bot.send_message(
-                        chat_id=habit.user.telegram_id,
-                        text=message
-                    )
+                    bot.send_message(chat_id=habit.user.telegram_id, text=message)
 
                     # Сохраняем успешную отправку
-                    Notification.objects.create(
-                        habit=habit,
-                        status='sent'
-                    )
+                    Notification.objects.create(habit=habit, status="sent")
 
                 except TelegramError as te:
                     logger.error(f"Ошибка Telegram: {te}")
-                    Notification.objects.create(
-                        habit=habit,
-                        status='error',
-                        error_message=str(te)
-                    )
+                    Notification.objects.create(habit=habit, status="error", error_message=str(te))
 
                 except Exception as e:
                     logger.error(f"Неизвестная ошибка: {e}")
-                    Notification.objects.create(
-                        habit=habit,
-                        status='error',
-                        error_message=str(e)
-                    )
+                    Notification.objects.create(habit=habit, status="error", error_message=str(e))
 
     except Exception as e:
         logger.critical(f"Критическая ошибка в задаче send_notifications: {e}")
@@ -70,14 +58,10 @@ def send_simple_request(url, data):
     Отправка POST-запроса с данными
     """
     try:
-        response = requests.post(
-            url,
-            json=data,
-            timeout=10  # Добавляем таймаут
-        )
+        response = requests.post(url, json=data, timeout=10)  # Добавляем таймаут
         response.raise_for_status()
         return response.json()
 
     except requests.RequestException as e:
         logger.error(f"Ошибка при отправке запроса: {e}")
-        return {'error': str(e)}
+        return {"error": str(e)}
