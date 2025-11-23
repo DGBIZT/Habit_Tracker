@@ -23,6 +23,7 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+import health
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -34,6 +35,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path('health/', health.health_check, name='health'),
     path("admin/", admin.site.urls),
     path('users/', include('users.urls', namespace='users')),
     path('habit/', include('habit.urls', namespace='habit')),
