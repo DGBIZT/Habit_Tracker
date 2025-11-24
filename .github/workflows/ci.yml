@@ -154,68 +154,87 @@ jobs:
         # Restore original docker-compose.yml
         mv docker-compose.yml.bak docker-compose.yml
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/webtracker'
+#  deploy:
+#    needs: test
+#    runs-on: ubuntu-latest
+#    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/webtracker'
+#
+#    steps:
+#    - uses: actions/checkout@v4
+#
+#    - name: Deploy to server
+#      uses: appleboy/ssh-action@v1.0.3
+#      with:
+#        host: ${{ secrets.SERVER_HOST }}
+#        username: ${{ secrets.SERVER_USERNAME }}
+#        key: ${{ secrets.SERVER_SSH_KEY }}
+#        script: |
+#          set -e  # Exit on error
+#          echo "🚀 Starting deployment..."
+#
+#          # Get current user (works in SSH session)
+#          CURRENT_USER=$(whoami)
+#          DEPLOY_DIR="/home/horhe/Habit_Tracker"
+#
+#          # Create directory if it doesn't exist
+#          if [ ! -d "$DEPLOY_DIR" ]; then
+#            echo "📁 Creating $DEPLOY_DIR directory..."
+#            sudo mkdir -p "$DEPLOY_DIR"
+#            sudo chown $CURRENT_USER:$CURRENT_USER "$DEPLOY_DIR"
+#          fi
+#
+#          cd "$DEPLOY_DIR"
+#
+#          # Clone repository if it doesn't exist or is empty
+#          if [ ! -d ".git" ]; then
+#            echo "📥 Cloning repository..."
+#            git clone https://github.com/DGBIZT/Habit_Tracker.git .
+#            git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
+#          else
+#            echo "📥 Pulling latest changes..."
+#            git fetch origin
+#            git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
+#            git pull origin feature/webtracker
+#          fi
+#
+#          echo "🛑 Stopping containers..."
+#          docker-compose down
+#
+#          echo "🔨 Building new images..."
+#          docker-compose build --no-cache
+#
+#          echo "▶️ Starting containers..."
+#          docker-compose up -d
+#
+#          echo "⏳ Waiting for services to be ready..."
+#          sleep 10
+#
+#          echo "📊 Applying database migrations..."
+##          docker-compose exec -T web python manage.py migrate --noinput || echo "⚠️ Migration failed, but continuing..."
+#
+#          echo "🧹 Cleaning up unused Docker resources..."
+#          docker system prune -f
+#
+#          echo "✅ Checking container status..."
+#          docker-compose ps
+#
+#          echo "🚀 Application deployed successfully!"
+    run_server:
+        needs: [build, copy_files_in_server]
+        runs-on: ubuntu-latest
+        steps:
+          - name: Set up SSH
+            uses: webfactory/ssh-agent@v0.8.0
+            with:
+              ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USERNAME }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          set -e  # Exit on error
-          echo "🚀 Starting deployment..."
-          
-          # Get current user (works in SSH session)
-          CURRENT_USER=$(whoami)
-          DEPLOY_DIR="/home/horhe/Habit_Tracker"
-          
-          # Create directory if it doesn't exist
-          if [ ! -d "$DEPLOY_DIR" ]; then
-            echo "📁 Creating $DEPLOY_DIR directory..."
-            sudo mkdir -p "$DEPLOY_DIR"
-            sudo chown $CURRENT_USER:$CURRENT_USER "$DEPLOY_DIR"
-          fi
-          
-          cd "$DEPLOY_DIR"
-          
-          # Clone repository if it doesn't exist or is empty
-          if [ ! -d ".git" ]; then
-            echo "📥 Cloning repository..."
-            git clone https://github.com/DGBIZT/Habit_Tracker.git .
-            git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
-          else
-            echo "📥 Pulling latest changes..."
-            git fetch origin
-            git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
-            git pull origin feature/webtracker
-          fi
-          
-          echo "🛑 Stopping containers..."
-          docker-compose down
-          
-          echo "🔨 Building new images..."
-          docker-compose build --no-cache
-          
-          echo "▶️ Starting containers..."
-          docker-compose up -d
-          
-          echo "⏳ Waiting for services to be ready..."
-          sleep 10
-          
-          echo "📊 Applying database migrations..."
-          docker-compose exec -T web python manage.py migrate --noinput || echo "⚠️ Migration failed, but continuing..."
-          
-          echo "🧹 Cleaning up unused Docker resources..."
-          docker system prune -f
-          
-          echo "✅ Checking container status..."
-          docker-compose ps
-          
-          echo "🚀 Application deployed successfully!"
+          - name: Run Server
+            run: |
+              ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
+                cd ${{ secrets.SERVER_USERNAME}}
+                git clone https://github.com/DGBIZT/Habit_Tracker.git .
+                git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
+                sudo docker compose down
+                sudo docker container rm $(docker ps -a -q)
+                sudo docker compose up -d --build
+              EOF
