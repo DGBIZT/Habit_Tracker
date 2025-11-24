@@ -240,7 +240,7 @@ jobs:
           source: "."
           target: ${{ secrets.SERVER_USERNAME }}
   run_server:
-      needs: [build]
+      needs: [copy_files_in_server]
       runs-on: ubuntu-latest
       steps:
         - name: Set up SSH
