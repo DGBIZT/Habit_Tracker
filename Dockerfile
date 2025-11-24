@@ -1,40 +1,44 @@
-FROM python:3.13.2-slim
+FROM python:3.13.2
 
 WORKDIR /app
 
-# 1. Устанавливаем только необходимые системные зависимости (без компиляторов)
+# Системные зависимости
 RUN apt-get update && apt-get install -y \
+    gcc \
     libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    python3-dev \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    curl
 
-# 2. Копируем pyproject.toml и poetry.lock
+# Копируем зависимости
 COPY pyproject.toml poetry.lock ./
 
-# Проверяем наличие файлов
-RUN if [ ! -f pyproject.toml ]; then echo "ERROR: pyproject.toml not found!" && exit 1; fi
-RUN if [ ! -f poetry.lock ]; then echo "ERROR: poetry.lock not found!" && exit 1; fi
+# Проверка файлов
+RUN if [ ! -f pyproject.toml ]; then echo "pyproject.toml not found!" && exit 1; fi
+RUN if [ ! -f poetry.lock ]; then echo "poetry.lock not found!" && exit 1; fi
 
-# 3. Устанавливаем Poetry безопасно (с проверкой версии)
-ENV POETRY_VERSION=1.8.3
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+# Установка зависимостей через Poetry
+RUN pip install poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --only main --no-root && \
+    pip install celery[redis]==5.4.0
 
-# 4. Настраиваем Poetry и устанавливаем зависимости
-RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi --no-root
 
-# 5. Копируем код приложения (после установки зависимостей)
+# Копируем код
 COPY . .
 
-# 6. Создаём директории для статики и медиа
+# Директории для статики и медиа
 RUN mkdir -p /app/staticfiles /app/media
 
-# 7. Экспонируем порт
-EXPOSE 8000
-
-# 8. Переменные окружения (переопределяются при запуске)
+# Переменные окружения (можно переопределить в .env)
 ENV SECRET_KEY="django-insecure-@s*q5imnj_d)vx%dfsb1%b3yyerkt#e$#p-$x@di1h8*smu2p="
 ENV CELERY_BROKER_URL="redis://redis:6379/1"
 ENV CELERY_RESULT_BACKEND="redis://redis:6379/1"
 
-# 9. Команда по умолчанию
+
+EXPOSE 8000
+
+# Команда по умолчанию
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
