@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev p
     libpq-dev \
     python3-dev \
     build-essential \
+    curl\
     -o Acquire::http::Timeout=1200 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
