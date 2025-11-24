@@ -32,7 +32,7 @@ RUN mkdir -p /app/staticfiles /app/media
 EXPOSE 8000
 
 # 8. Переменные окружения (переопределяются при запуске)
-ENV SECRET_KEY=""  # Оставляем пустым — задаётся через .env или docker run
+ENV SECRET_KEY="django-insecure-@s*q5imnj_d)vx%dfsb1%b3yyerkt#e$#p-$x@di1h8*smu2p="
 ENV CELERY_BROKER_URL="redis://redis:6379/1"
 ENV CELERY_RESULT_BACKEND="redis://redis:6379/1"
 
