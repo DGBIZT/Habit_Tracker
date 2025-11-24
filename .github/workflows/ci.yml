@@ -252,8 +252,6 @@ jobs:
           run: |
             ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
               cd ${{ secrets.SERVER_USERNAME}}
-              git clone git@github.com:DGBIZT/Habit_Tracker.git .
-              git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
               sudo docker compose down
               sudo docker container rm $(docker ps -a -q)
               sudo docker compose up -d --build
