@@ -3,7 +3,7 @@ FROM python:3.13.2
 WORKDIR /app
 
 # Системные зависимости
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     python3-dev \
