@@ -3,16 +3,16 @@ FROM python:3.13.2
 WORKDIR /app
 
 # Системные зависимости
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev python3-dev build-essential\
-    gcc \
-    libpq-dev \
-    python3-dev \
-    build-essential \
-    curl\
-    -o Acquire::http::Timeout=1200 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    curl
+#RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev python3-dev build-essential\
+#    gcc \
+#    libpq-dev \
+#    python3-dev \
+#    build-essential \
+#    curl\
+#    -o Acquire::http::Timeout=1200 \
+#    && apt-get clean \
+#    && rm -rf /var/lib/apt/lists/* \
+#    curl
 
 # Копируем зависимости
 COPY pyproject.toml poetry.lock ./
