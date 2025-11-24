@@ -18,8 +18,8 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Проверка файлов
-RUN if [ ! -f pyproject.toml ]; then echo "pyproject.toml not found!" && exit 1; fi
-RUN if [ ! -f poetry.lock ]; then echo "poetry.lock not found!" && exit 1; fi
+#RUN if [ ! -f pyproject.toml ]; then echo "pyproject.toml not found!" && exit 1; fi
+#RUN if [ ! -f poetry.lock ]; then echo "poetry.lock not found!" && exit 1; fi
 
 # Установка зависимостей через Poetry
 RUN pip install poetry && \
@@ -35,12 +35,12 @@ COPY . .
 RUN mkdir -p /app/staticfiles /app/media
 
 # Переменные окружения (можно переопределить в .env)
-ENV SECRET_KEY="django-insecure-@s*q5imnj_d)vx%dfsb1%b3yyerkt#e$#p-$x@di1h8*smu2p="
-ENV CELERY_BROKER_URL="redis://redis:6379/1"
-ENV CELERY_RESULT_BACKEND="redis://redis:6379/1"
+#ENV SECRET_KEY="django-insecure-@s*q5imnj_d)vx%dfsb1%b3yyerkt#e$#p-$x@di1h8*smu2p="
+#ENV CELERY_BROKER_URL="redis://redis:6379/1"
+#ENV CELERY_RESULT_BACKEND="redis://redis:6379/1"
 
 
 EXPOSE 8000
 
 # Команда по умолчанию
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+#CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
