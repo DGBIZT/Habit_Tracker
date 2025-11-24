@@ -219,22 +219,22 @@ jobs:
 #          docker-compose ps
 #
 #          echo "🚀 Application deployed successfully!"
-    run_server:
-        needs: [build, copy_files_in_server]
-        runs-on: ubuntu-latest
-        steps:
-          - name: Set up SSH
-            uses: webfactory/ssh-agent@v0.8.0
-            with:
-              ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+  run_server:
+      needs: [build]
+      runs-on: ubuntu-latest
+      steps:
+        - name: Set up SSH
+          uses: webfactory/ssh-agent@v0.8.0
+          with:
+            ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-          - name: Run Server
-            run: |
-              ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
-                cd ${{ secrets.SERVER_USERNAME}}
-                git clone https://github.com/DGBIZT/Habit_Tracker.git .
-                git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
-                sudo docker compose down
-                sudo docker container rm $(docker ps -a -q)
-                sudo docker compose up -d --build
-              EOF
+        - name: Run Server
+          run: |
+            ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
+              cd ${{ secrets.SERVER_USERNAME}}
+              git clone https://github.com/DGBIZT/Habit_Tracker.git .
+              git checkout feature/webtracker || git checkout -b feature/webtracker origin/feature/webtracker
+              sudo docker compose down
+              sudo docker container rm $(docker ps -a -q)
+              sudo docker compose up -d --build
+            EOF
