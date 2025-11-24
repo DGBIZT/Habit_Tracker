@@ -1,0 +1,64 @@
+# --- Системные и временные файлы ---
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Кэш и промежуточные файлы ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# --- Локальные окружения и зависимости ---
+venv/
+env/
+.venv/
+.env/
+
+# --- Кэш Poetry (критично!) ---
+.cache/
+poetry.lock  # Обычно не нужен в образе (см. примечание ниже)
+
+# --- Система контроля версий ---
+.git/
+.gitignore
+.gitmodules
+
+# --- Файлы IDE ---
+.vscode/
+.idea/
+*.sublime-workspace
+
+# --- Тестирование и документация ---
+tests/
+test/
+docs/
+
+# --- Локальные конфигурации и секреты ---
+.env
+*.pem
+*.key
+config/local.yaml
+secrets.json
+
+# --- Артефакты сборки ---
+dist/
+build/
+target/
+out/
+
+# --- Архивы и бинарные файлы ---
+*.zip
+*.tar.gz
+*.rar
+*.whl
+
+# --- Прочие ненужные данные ---
+*README.md        # Если не нужен в контейнере
+*CHANGELOG.md     # Если не нужен в контейнере
