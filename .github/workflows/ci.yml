@@ -11,12 +11,12 @@ on:
 
 jobs:
 
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t myapp .
+#  build:
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 90
+#    steps:
+#      - uses: actions/checkout@v4
+#      - run: docker build -t myapp .
 
   test:
     runs-on: ubuntu-latest
@@ -103,56 +103,95 @@ jobs:
         coverage run --source='.' manage.py test
         coverage report
         coverage xml
+  build:
+    runs-on: ubuntu-latest
 
-    - name: Build and test Docker images
-      env:
-        DATABASE_NAME: test_db
-        DATABASE_USER: ${{ secrets.POSTGRES }}
-        DATABASE_PASSWORD: ${{ secrets.POSTGRES }}
-        SECRET_KEY: ${{ secrets.SECRETKEY }}
-        DEBUG: True
-        ALLOWED_HOSTS: localhost,127.0.0.1
-        REDIS_URL: redis://redis:6379/0
-        CELERY_BROKER_URL: redis://redis:6379/0
-        CELERY_RESULT_BACKEND: redis://redis:6379/0
-        EMAIL_HOST_USER: test@example.com
-        EMAIL_HOST_PASSWORD: test
-      run: |
-        # Create temporary .env file for Docker Compose
-        cat > .env << 'ENVEOF'
-        DATABASE_NAME=test_db
-        DATABASE_USER=${{ secrets.POSTGRES }}
-        DATABASE_PASSWORD=${{ secrets.POSTGRES }}
-        DATABASE_HOST=db
-        DATABASE_PORT=5432
-        SECRET_KEY=${{ secrets.SECRETKEY }}
-        DEBUG=True
-        ALLOWED_HOSTS=localhost,127.0.0.1
-        REDIS_URL=redis://redis:6379/0
-        CELERY_BROKER_URL=redis://redis:6379/0
-        CELERY_RESULT_BACKEND=redis://redis:6379/0
-        EMAIL_HOST_USER=test@example.com
-        EMAIL_HOST_PASSWORD=test
-        ENVEOF
-        
-        # Temporarily change ports in docker-compose.yml to avoid conflicts with GitHub Actions services
-        cp docker-compose.yml docker-compose.yml.bak
-        sed -i 's/- "5432:5432"/- "5433:5432"/' docker-compose.yml
-        sed -i 's/- "6379:6379"/- "6380:6379"/' docker-compose.yml
-        
-        # Ensure we restore the file even if something fails
-        trap 'mv docker-compose.yml.bak docker-compose.yml 2>/dev/null || true' EXIT
-        
-        # Build and test Docker images
-        docker compose build
-        docker compose up -d
-        sleep 30
-        docker compose ps
-        docker compose logs web
-        docker compose down
-        
-        # Restore original docker-compose.yml
-        mv docker-compose.yml.bak docker-compose.yml
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Create .env file
+        run: |
+          touch .env
+          echo '"${{ secrets.ENVFILE }}"' | sed "s/\"//g" > .env
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKERTOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/myapp3:${{ github.sha }} .
+
+      - name: Push Docker image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_HUB_USERNAME }}/myapp3:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Deploy to Server
+        run: |
+          ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/myapp3:${{ github.sha }}
+            sudo docker stop myapp || true
+            sudo docker rm myapp || true
+            sudo docker run -d --name myapp -p 80:8000 ${{ secrets.DOCKER_HUB_USERNAME }}/myapp3:${{ github.sha }}
+          EOF
+
+#    - name: Build and test Docker images
+#      env:
+#        DATABASE_NAME: test_db
+#        DATABASE_USER: ${{ secrets.POSTGRES }}
+#        DATABASE_PASSWORD: ${{ secrets.POSTGRES }}
+#        SECRET_KEY: ${{ secrets.SECRETKEY }}
+#        DEBUG: True
+#        ALLOWED_HOSTS: localhost,127.0.0.1
+#        REDIS_URL: redis://redis:6379/0
+#        CELERY_BROKER_URL: redis://redis:6379/0
+#        CELERY_RESULT_BACKEND: redis://redis:6379/0
+#        EMAIL_HOST_USER: test@example.com
+#        EMAIL_HOST_PASSWORD: test
+#      run: |
+#        # Create temporary .env file for Docker Compose
+#        cat > .env << 'ENVEOF'
+#        DATABASE_NAME=test_db
+#        DATABASE_USER=${{ secrets.POSTGRES }}
+#        DATABASE_PASSWORD=${{ secrets.POSTGRES }}
+#        DATABASE_HOST=db
+#        DATABASE_PORT=5432
+#        SECRET_KEY=${{ secrets.SECRETKEY }}
+#        DEBUG=True
+#        ALLOWED_HOSTS=localhost,127.0.0.1
+#        REDIS_URL=redis://redis:6379/0
+#        CELERY_BROKER_URL=redis://redis:6379/0
+#        CELERY_RESULT_BACKEND=redis://redis:6379/0
+#        EMAIL_HOST_USER=test@example.com
+#        EMAIL_HOST_PASSWORD=test
+#        ENVEOF
+#
+#        # Temporarily change ports in docker-compose.yml to avoid conflicts with GitHub Actions services
+#        cp docker-compose.yml docker-compose.yml.bak
+#        sed -i 's/- "5432:5432"/- "5433:5432"/' docker-compose.yml
+#        sed -i 's/- "6379:6379"/- "6380:6379"/' docker-compose.yml
+#
+#        # Ensure we restore the file even if something fails
+#        trap 'mv docker-compose.yml.bak docker-compose.yml 2>/dev/null || true' EXIT
+#
+#        # Build and test Docker images
+#        docker compose build
+#        docker compose up -d
+#        sleep 30
+#        docker compose ps
+#        docker compose logs web
+#        docker compose down
+#
+#        # Restore original docker-compose.yml
+#        mv docker-compose.yml.bak docker-compose.yml
 
 #  deploy:
 #    needs: test
@@ -219,39 +258,39 @@ jobs:
 #          docker-compose ps
 #
 #          echo "🚀 Application deployed successfully!"
-  copy_files_in_server:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Create .env file
-        run: |
-          touch .env
-          echo '"${{ secrets.ENV_FILE }}"' | sed "s/\"//g" > .env  # Удаление кавычек в файле. P.S. их не должно быть в секретах
-
-      - name: copy file
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "."
-          target: ${{ secrets.SERVER_USERNAME }}
-  run_server:
-      needs: [copy_files_in_server]
-      runs-on: ubuntu-latest
-      steps:
-        - name: Set up SSH
-          uses: webfactory/ssh-agent@v0.8.0
-          with:
-            ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
-
-        - name: Run Server
-          run: |
-            ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
-              cd ${{ secrets.SERVER_USERNAME}}
-              sudo docker compose down
-              sudo docker compose up -d --build
-            EOF
+#  copy_files_in_server:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check out code
+#        uses: actions/checkout@v3
+#
+#      - name: Create .env file
+#        run: |
+#          touch .env
+#          echo '"${{ secrets.ENV_FILE }}"' | sed "s/\"//g" > .env  # Удаление кавычек в файле. P.S. их не должно быть в секретах
+#
+#      - name: copy file
+#        uses: appleboy/scp-action@v0.1.7
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USERNAME }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          source: "."
+#          target: ${{ secrets.SERVER_USERNAME }}
+#  run_server:
+#      needs: [copy_files_in_server]
+#      runs-on: ubuntu-latest
+#      steps:
+#        - name: Set up SSH
+#          uses: webfactory/ssh-agent@v0.8.0
+#          with:
+#            ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+#
+#        - name: Run Server
+#          run: |
+#            ssh -o StrictHostKeyChecking=no -vT ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'EOF'
+#              cd ${{ secrets.SERVER_USERNAME}}
+#              sudo docker compose down
+#              sudo docker compose up -d --build
+#            EOF
