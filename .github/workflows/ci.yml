@@ -10,6 +10,14 @@ on:
   workflow_dispatch:  # Allows manual triggering from GitHub UI
 
 jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t myapp .
+
   test:
     runs-on: ubuntu-latest
 
